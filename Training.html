@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Training" />
+  <meta name="theme-color" content="#EDE9E0" />
+  <title>Force & Volume</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F5F2EC; font-family: Georgia, 'Times New Roman', serif; color: #1A1A1A; -webkit-tap-highlight-color: transparent; }
+    #root { min-height: 100%; }
+    ::-webkit-scrollbar { display: none; }
+    textarea { -webkit-appearance: none; }
+    button { -webkit-appearance: none; font-family: Georgia, serif; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const { useState, useEffect, useCallback } = React;
+
+// ─── DONNÉES ────────────────────────────────────────────────────────────────
+
+const RATINGS = [
+  { id: "impossible", label: "Impossible",        emoji: "✕", color: "#CC3333", bg: "#FFF0F0" },
+  { id: "dur",        label: "Dur mais faisable", emoji: "◐", color: "#CC7700", bg: "#FFF8EC" },
+  { id: "bien",       label: "Bien",              emoji: "✓", color: "#2A8C4A", bg: "#F0FAF3" },
+  { id: "facile",     label: "Trop facile",       emoji: "⚡", color: "#2A7BE8", bg: "#EFF4FF" },
+];
+
+const DAYS = [
+  {
+    id: 1, label: "JOUR A", focus: "Pectoraux + Triceps",
+    theme: "PUSH — FORCE & VOLUME", color: "#E84B2A", tag: "PUSH",
+    exercises: [
+      { name: "Pompes Archer", sets: "4", reps: "6 à 8 / côté", rest: "90s", note: "Poignets de pompes. Shift du poids sur un bras, bras opposé tendu. Progression vers la pompe à 1 bras.", muscle: "Pecto / Épaule" },
+      { name: "Pompes Decline (pieds surélevés)", sets: "4", reps: "10 à 15", rest: "75s", note: "Pieds sur une chaise ou canapé. Accent sur le faisceau claviculaire du pecto.", muscle: "Pecto haut" },
+      { name: "Dips (KB 6kg)", sets: "4", reps: "6", rest: "120s", note: "KB 6kg entre les pieds. Descente contrôlée 3 secondes, pause en bas. Objectif progresser vers 8 reps propres avant d'augmenter la charge.", muscle: "Pecto bas / Triceps" },
+      { name: "Pompes Pseudo Planche", sets: "3", reps: "8 à 10", rest: "90s", note: "Mains au niveau des hanches, corps penché en avant. Activation maximale du pecto inférieur et deltoïde antérieur.", muscle: "Pecto bas / Deltoïde ant." },
+      { name: "Pompes Diamant", sets: "3", reps: "12 à 15", rest: "60s", note: "Mains formant un losange sous le sternum. Finisher triceps et pecto interne.", muscle: "Triceps / Pecto" },
+      { name: "L-Sit Hold (barre dips)", sets: "3", reps: "10 à 15 sec", rest: "60s", note: "Jambes tendues horizontales. Compression abdominale totale. Progresser en durée.", muscle: "Core / Hip flexors" },
+    ],
+  },
+  {
+    id: 2, label: "JOUR B", focus: "Tractions + Posture",
+    theme: "PULL — DOS, ARRIÈRE ÉPAULE, OMOPLATES", color: "#2A7BE8", tag: "PULL",
+    exercises: [
+      { name: "Traction lestée (KB 6kg)", sets: "5", reps: "6", rest: "120s", note: "KB 6kg entre les pieds ou dans un sac. Mouvement complet, coudes vers les hanches. 5 séries pour maximiser le volume de force.", muscle: "Grand dorsal / Biceps" },
+      { name: "Traction australienne (barre basse)", sets: "4", reps: "12 à 15", rest: "75s", note: "Corps incliné, pieds au sol. Tirer les coudes vers le bas et en arrière. Excellent pour milieu du dos et rétraction scapulaire.", muscle: "Rhomboïdes / Milieu dos" },
+      { name: "Face Pull au poids du corps (barre basse)", sets: "4", reps: "15", rest: "60s", note: "Barre à hauteur de poitrine. Tirer vers le visage en écarquillant les coudes vers le haut. Correction posture épaule, travaille infraépineux et sous-épineux.", muscle: "Arrière épaule / Coiffe" },
+      { name: "Traction prise supination (chin-up)", sets: "3", reps: "6", rest: "90s", note: "Prise sous-main, bras dans l'axe des épaules. Accent biceps et grand dorsal interne. Corps suspendu entre chaque rep.", muscle: "Grand dorsal / Biceps" },
+      { name: "KB Row à 1 bras", sets: "4", reps: "10 à 12 / côté", rest: "60s", note: "Genou et main opposés sur une chaise. Coude vers le plafond. Contraction scapulaire en fin de mouvement, maintien 1 seconde.", muscle: "Grand dorsal / Trapèze" },
+      { name: "Superman Hold (sol)", sets: "3", reps: "5 x 5 secondes", rest: "45s", note: "Allongé face au sol, bras tendus devant. Lever simultanément bras et jambes. Maintien 5s. Renforce érecteurs du rachis et arrière épaule.", muscle: "Érecteurs / Arrière épaule" },
+    ],
+  },
+  {
+    id: 3, label: "JOUR C", focus: "Jambes + Genou",
+    theme: "BAS DU CORPS — QUADRICEPS, FESSIERS, STABILITÉ", color: "#2AAE5E", tag: "LEGS",
+    exercises: [
+      { name: "Bulgarian Split Squat (KB 20kg)", sets: "4", reps: "8 à 10 / jambe", rest: "90s", note: "Pied arrière sur une chaise. Genou avant dans l'axe du pied. Descente lente 3 secondes. Fondamental pour protéger le genou droit.", muscle: "Quad / Fessier" },
+      { name: "Step-Up lent avec KB", sets: "3", reps: "10 / jambe", rest: "75s", note: "Marche ou chaise solide. Poussée sur le talon, montée 2s, descente 3s. Renforce stabilisateurs du genou.", muscle: "Quad / Fessier" },
+      { name: "Squat Pistol assisté", sets: "3", reps: "6 à 8 / jambe", rest: "90s", note: "Tenir une barre de traction basse ou poteau. Descente complète jambe tendue. Progresser vers le pistol libre.", muscle: "Quad / Stabilisateurs" },
+      { name: "Calf Raise unipodal sur marche", sets: "4", reps: "15 à 20 / jambe", rest: "45s", note: "Bord de marche. Descente complète, montée explosive. Renforce cheville et pied pour protéger le genou.", muscle: "Mollet / Pied" },
+      { name: "Short Arc Quad (isométrique genou)", sets: "3", reps: "30s / jambe", rest: "45s", note: "Assis, serviette sous le genou, jambe tendue et maintenue. Activation VMO, protection rotule.", muscle: "VMO / Genou" },
+      { name: "Dorsiflexion active au sol", sets: "3", reps: "15 / pied", rest: "30s", note: "Assis, bande ou main résistante sur le dos du pied. Ramener le pied vers soi contre résistance. Renforce tibial antérieur.", muscle: "Tibial / Cheville" },
+    ],
+  },
+  {
+    id: 4, label: "JOUR D", focus: "Circuit Kettlebell + Cardio",
+    theme: "CIRCUIT TRAINING — KB, GAINAGE, CARDIO", color: "#A82AE8", tag: "CIRCUIT",
+    exercises: [
+      { name: "KB Swing à 2 mains", sets: "5", reps: "20", rest: "45s", note: "Extension explosive des hanches. Mouvement de hanche pur, pas de squat. Chaleur cardio immédiate.", muscle: "Ischio / Fessier / Core" },
+      { name: "KB Goblet Squat", sets: "4", reps: "15", rest: "45s", note: "KB tenu au menton, descente maximale, talons au sol. Enchaîner directement après les swings.", muscle: "Quad / Fessier" },
+      { name: "KB Turkish Get-Up", sets: "3", reps: "3 / côté", rest: "60s", note: "Mouvement complet du sol vers debout. Contrôle total du corps. Prendre le temps sur chaque phase.", muscle: "Full body / Stabilité" },
+      { name: "KB Swing à 1 bras", sets: "4", reps: "15 / côté", rest: "45s", note: "Extension explosive de la hanche. Transfert de l'énergie vers le bras. Anti-rotation core.", muscle: "Ischio / Core / Anti-rot." },
+      { name: "Mountain Climber", sets: "4", reps: "30 secondes", rest: "30s", note: "Position de pompe. Genoux vers la poitrine en alternance. Rythme soutenu. Cardio + core.", muscle: "Core / Cardio" },
+      { name: "KB Suitcase Hold (gainage latéral)", sets: "3", reps: "30s / côté", rest: "45s", note: "KB 20kg tenu à un côté, se tenir parfaitement droit. Anti-flexion latérale. Core profond.", muscle: "Obliques / Core" },
+    ],
+  },
+];
+
+const WEEK_PLAN = [
+  { jour: "Lun", dayIdx: 0 }, { jour: "Mar", dayIdx: 1 }, { jour: "Mer", dayIdx: null },
+  { jour: "Jeu", dayIdx: 2 }, { jour: "Ven", dayIdx: 3 }, { jour: "Sam", dayIdx: null }, { jour: "Dim", dayIdx: null },
+];
+
+const PROGRESSIONS = [
+  { week: "Sem. 1 à 2", rule: "Apprendre les mouvements, respecter les temps de repos, ne pas aller à l'échec." },
+  { week: "Sem. 3 à 4", rule: "Ajouter 1 répétition par série dès que toutes les reps sont propres." },
+  { week: "Sem. 5 à 6", rule: "Réduire le temps de repos de 15 secondes OU ajouter une série." },
+  { week: "Sem. 7 à 8", rule: "Introduire une variante plus difficile ou augmenter le lest de 2kg." },
+];
+
+// ─── localStorage helpers ────────────────────────────────────────────────────
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function save(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+// ─── EXERCISE CARD ───────────────────────────────────────────────────────────
+
+function ExerciseCard({ ex, dayColor, exRating, onRate, exNote, onNoteSave }) {
+  const [expanded, setExpanded] = useState(false);
+  const [localNote, setLocalNote] = useState(exNote || "");
+  const currentRating = RATINGS.find(r => r.id === exRating);
+  const isDone = !!exRating;
+
+  useEffect(() => { setLocalNote(exNote || ""); }, [exNote]);
+
+  const headerStyle = {
+    padding: "14px 16px", cursor: "pointer",
+    userSelect: "none", WebkitUserSelect: "none",
+  };
+  const cardStyle = {
+    background: isDone ? currentRating.bg : "#FFFFFF",
+    border: "1px solid " + (isDone ? currentRating.color + "55" : "#E0DBCF"),
+    borderRadius: 10, overflow: "hidden", transition: "all 0.2s", marginBottom: 0,
+  };
+
+  return React.createElement("div", { style: cardStyle },
+    isDone && React.createElement("div", { style: { height: 2, background: currentRating.color } }),
+    React.createElement("div", { style: headerStyle, onClick: () => setExpanded(v => !v) },
+      React.createElement("div", { style: { display: "flex", alignItems: "flex-start", gap: 12 } },
+        React.createElement("div", {
+          style: {
+            width: 24, height: 24, flexShrink: 0, marginTop: 1,
+            border: "1.5px solid " + (isDone ? currentRating.color : "#CCCCCC"),
+            borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center",
+            background: isDone ? currentRating.color + "20" : "transparent",
+            fontSize: 12, color: isDone ? currentRating.color : "#CCC", fontWeight: 600,
+          }
+        }, isDone ? currentRating.emoji : ""),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+            React.createElement("h3", {
+              style: { margin: "0 0 5px", fontSize: 14, fontWeight: 400,
+                color: isDone ? "#888" : "#1A1A1A",
+                textDecoration: isDone ? "line-through" : "none" }
+            }, ex.name),
+            isDone && React.createElement("span", {
+              style: { fontSize: 10, color: currentRating.color, background: currentRating.color + "18",
+                padding: "2px 7px", borderRadius: 3, letterSpacing: 0.5, flexShrink: 0, marginLeft: 8 }
+            }, currentRating.label)
+          ),
+          React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } },
+            React.createElement("span", { style: { color: dayColor, fontSize: 12, fontStyle: "italic" } }, ex.sets + " séries · " + ex.reps),
+            React.createElement("span", { style: { color: "#BBB", fontSize: 12 } }, "Repos : " + ex.rest),
+            React.createElement("span", {
+              style: { fontSize: 9, color: "#AAA", border: "1px solid #D8D2C6",
+                padding: "1px 6px", borderRadius: 3, letterSpacing: 1, textTransform: "uppercase" }
+            }, ex.muscle)
+          )
+        ),
+        React.createElement("span", {
+          style: { color: "#CCC", fontSize: 12, flexShrink: 0, marginTop: 2,
+            transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }
+        }, "▾")
+      )
+    ),
+    expanded && React.createElement("div", { style: { padding: "0 16px 16px", borderTop: "1px solid #F0EDE6" } },
+      React.createElement("p", { style: { margin: "12px 0 14px", color: "#777", fontSize: 12, lineHeight: 1.7, fontStyle: "italic" } }, ex.note),
+      React.createElement("p", { style: { margin: "0 0 8px", fontSize: 10, color: "#AAA", letterSpacing: 2, textTransform: "uppercase" } }, "Comment s'est passé cet exercice ?"),
+      React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 } },
+        RATINGS.map(r => React.createElement("button", {
+          key: r.id,
+          onClick: e => { e.stopPropagation(); onRate(r.id === exRating ? null : r.id); },
+          style: {
+            padding: "7px 11px", border: "1.5px solid " + (exRating === r.id ? r.color : "#D8D2C6"),
+            background: exRating === r.id ? r.bg : "transparent",
+            color: exRating === r.id ? r.color : "#999",
+            borderRadius: 6, cursor: "pointer", fontSize: 11,
+            display: "flex", alignItems: "center", gap: 4, transition: "all 0.15s",
+          }
+        }, React.createElement("span", { style: { fontSize: 13 } }, r.emoji), r.label))
+      ),
+      React.createElement("p", { style: { margin: "0 0 6px", fontSize: 10, color: "#AAA", letterSpacing: 2, textTransform: "uppercase" } }, "Note libre (optionnel)"),
+      React.createElement("textarea", {
+        value: localNote,
+        onChange: e => setLocalNote(e.target.value),
+        onClick: e => e.stopPropagation(),
+        placeholder: "Douleur, sensation, nb de reps réelles, remarque...",
+        style: {
+          width: "100%", minHeight: 60, padding: "8px 10px",
+          border: "1px solid #D8D2C6", borderRadius: 6,
+          fontFamily: "Georgia, serif", fontSize: 12,
+          color: "#1A1A1A", background: "#F9F7F3",
+          resize: "vertical", outline: "none", lineHeight: 1.6,
+        }
+      }),
+      localNote !== (exNote || "") && React.createElement("button", {
+        onClick: e => { e.stopPropagation(); onNoteSave(localNote); },
+        style: {
+          marginTop: 8, padding: "6px 14px", border: "none",
+          background: dayColor, color: "#FFF", borderRadius: 5, cursor: "pointer",
+          fontSize: 10, letterSpacing: 1, textTransform: "uppercase",
+        }
+      }, "Enregistrer")
+    )
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [activeDay, setActiveDay] = useState(() => load("activeDay", 0));
+  const [view, setView]           = useState("program");
+  const [exRatings, setExRatings] = useState(() => load("exRatings", {}));
+  const [exNotes, setExNotes]     = useState(() => load("exNotes", {}));
+  const [sessionComments, setSessionComments] = useState(() => load("sessionComments", {}));
+  const [currentComment, setCurrentComment]   = useState("");
+  const [isAdapting, setIsAdapting]   = useState(false);
+  const [adaptResult, setAdaptResult] = useState(null);
+  const [adaptError, setAdaptError]   = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const day   = DAYS[activeDay];
+  const today = new Date().toLocaleDateString("fr-FR");
+
+  useEffect(() => { save("activeDay", activeDay); }, [activeDay]);
+  useEffect(() => { save("exRatings", exRatings); }, [exRatings]);
+  useEffect(() => { save("exNotes", exNotes); }, [exNotes]);
+  useEffect(() => { save("sessionComments", sessionComments); }, [sessionComments]);
+
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+
+  const rateExercise = (dayId, exIdx, ratingId) => {
+    const key = dayId + "-" + exIdx;
+    setExRatings(prev => ({ ...prev, [key]: ratingId }));
+  };
+  const saveExNote = (dayId, exIdx, text) => {
+    const key = dayId + "-" + exIdx;
+    setExNotes(prev => ({ ...prev, [key]: text }));
+    showToast("Note enregistrée");
+  };
+
+  const dayProgress = day.exercises.filter((_, i) => exRatings[day.id + "-" + i]).length;
+  const allComments = Object.values(sessionComments).sort((a, b) => b.ts - a.ts);
+
+  const saveSessionComment = () => {
+    if (!currentComment.trim()) return;
+    const key = day.id + "-" + Date.now();
+    setSessionComments(prev => ({
+      ...prev,
+      [key]: { dayId: day.id, dayLabel: day.label, dayFocus: day.focus, date: today, ts: Date.now(), text: currentComment },
+    }));
+    setCurrentComment("");
+    showToast("Commentaire sauvegardé");
+  };
+
+  const buildRatingsSummary = () => {
+    const lines = [];
+    DAYS.forEach(d => {
+      d.exercises.forEach((ex, i) => {
+        const rId = exRatings[d.id + "-" + i];
+        const note = exNotes[d.id + "-" + i];
+        if (rId || note) {
+          const rating = RATINGS.find(r => r.id === rId);
+          let line = "[" + d.label + " - " + ex.name + "]";
+          if (rating) line += " Évaluation : " + rating.label;
+          if (note) line += ' / Note : "' + note + '"';
+          lines.push(line);
+        }
+      });
+    });
+    return lines.join("\n");
+  };
+
+  const adaptProgram = async () => {
+    const summary = buildRatingsSummary();
+    if (!summary && allComments.length === 0) return;
+    setIsAdapting(true); setAdaptResult(null); setAdaptError(null);
+    const commentsText = allComments.map(c => "[" + c.date + " - " + c.dayLabel + "] : " + c.text).join("\n");
+    const currentProgram = DAYS.map(d =>
+      d.label + " (" + d.focus + "):\n" + d.exercises.map(e => "  - " + e.name + " : " + e.sets + " séries x " + e.reps).join("\n")
+    ).join("\n\n");
+    const prompt = `Tu es un coach en musculation au poids du corps et kettlebell. Voici le programme actuel sur 4 jours :\n\n${currentProgram}\n\nContraintes absolues :\n- Dips : max 6 reps avec KB 6kg pour l'instant\n- Tractions lestées : max 6 reps avec KB 6kg pour l'instant\n- Matériel : KB 20kg, KB 6kg, barre de traction, poignets pour pompes, barre pour dips\n- Objectif : force et volume pectoraux\n- Genou droit fragile : maintenir renforcement VMO et stabilisateurs\n- 4 jours / semaine : Jour A (Push), Jour B (Pull), Jour C (Legs), Jour D (Circuit KB)\n\nÉvaluations par exercice :\n${summary || "Aucune évaluation encore."}\n\nCommentaires globaux :\n${commentsText || "Aucun commentaire encore."}\n\nPropose des ajustements précis. Réponds en JSON UNIQUEMENT :\n{"analyse":"...","ajustements":[{"jour":"...","exercice":"...","modification":"...","raison":"..."}],"conseil_global":"..."}`;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await res.json();
+      const text = (data.content?.find(b => b.type === "text")?.text || "").replace(/```json|```/g, "").trim();
+      setAdaptResult(JSON.parse(text));
+    } catch { setAdaptError("Erreur lors de l'analyse. Réessaie dans un moment."); }
+    finally { setIsAdapting(false); }
+  };
+
+  // ── Styles helpers ──────────────────────────────────────────────────────────
+  const label = { color: "#999", fontSize: 10, letterSpacing: 3, textTransform: "uppercase", margin: "0 0 10px" };
+  const card  = { background: "#FFFFFF", border: "1px solid #E0DBCF", borderRadius: 10, padding: "14px 16px" };
+
+  // ── VUE PROGRAMME ──────────────────────────────────────────────────────────
+  const renderProgram = () =>
+    React.createElement("div", { style: { padding: "0 16px 80px" } },
+      // Sélecteur de jour
+      React.createElement("div", { style: { display: "flex", gap: 8, padding: "16px 0", overflowX: "auto" } },
+        DAYS.map((d, i) => React.createElement("button", {
+          key: d.id, onClick: () => setActiveDay(i),
+          style: {
+            flexShrink: 0, padding: "9px 14px",
+            border: "2px solid " + (activeDay === i ? d.color : "#D8D2C6"),
+            background: activeDay === i ? d.color + "15" : "transparent",
+            color: activeDay === i ? d.color : "#999",
+            borderRadius: 6, cursor: "pointer", fontSize: 10,
+            letterSpacing: 2, textTransform: "uppercase", transition: "all 0.2s",
+          }
+        },
+          React.createElement("span", { style: { display: "block", fontSize: 8, opacity: 0.6, marginBottom: 2 } }, d.tag),
+          d.label
+        ))
+      ),
+      // Header jour
+      React.createElement("div", { style: { borderLeft: "3px solid " + day.color, paddingLeft: 14, marginBottom: 18 } },
+        React.createElement("p", { style: { margin: "0 0 2px", color: day.color, fontSize: 10, letterSpacing: 3, textTransform: "uppercase" } }, day.focus),
+        React.createElement("h2", { style: { margin: 0, fontSize: 16, fontWeight: 400 } }, day.theme),
+        React.createElement("p", { style: { margin: "5px 0 0", color: "#BBB", fontSize: 12 } }, dayProgress + " / " + day.exercises.length + " exercices évalués"),
+        React.createElement("div", { style: { marginTop: 6, height: 2, background: "#E0DBCF", borderRadius: 2 } },
+          React.createElement("div", { style: { height: 2, width: (dayProgress / day.exercises.length * 100) + "%", background: day.color, borderRadius: 2, transition: "width 0.4s" } })
+        )
+      ),
+      // Légende
+      React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } },
+        RATINGS.map(r => React.createElement("span", {
+          key: r.id,
+          style: { fontSize: 10, color: r.color, padding: "3px 8px", background: r.bg, border: "1px solid " + r.color + "33", borderRadius: 4 }
+        }, r.emoji + " " + r.label))
+      ),
+      // Exercices
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        day.exercises.map((ex, i) => React.createElement(ExerciseCard, {
+          key: day.id + "-" + i, ex, dayColor: day.color,
+          exRating: exRatings[day.id + "-" + i],
+          onRate: rId => rateExercise(day.id, i, rId),
+          exNote: exNotes[day.id + "-" + i],
+          onNoteSave: text => saveExNote(day.id, i, text),
+        }))
+      ),
+      // Alerte genou
+      day.id === 3 && React.createElement("div", {
+        style: { marginTop: 14, padding: "12px 14px", background: "#FDF8E8", border: "1px solid #C8B87A", borderRadius: 8 }
+      },
+        React.createElement("p", { style: { margin: 0, color: "#B8860B", fontSize: 12, lineHeight: 1.6 } },
+          React.createElement("span", { style: { fontSize: 9, letterSpacing: 2, textTransform: "uppercase" } }, "Genou droit"),
+          React.createElement("br"),
+          "Si douleur, stopper le mouvement. VMO et Calf Raise unilatéral sont les exercices prioritaires."
+        )
+      ),
+      // Commentaire séance
+      React.createElement("div", { style: { marginTop: 22, ...card } },
+        React.createElement("p", { style: label }, "Commentaire global de séance"),
+        React.createElement("textarea", {
+          value: currentComment,
+          onChange: e => setCurrentComment(e.target.value),
+          placeholder: "Ressenti général, fatigue, points d'attention...",
+          style: {
+            width: "100%", minHeight: 68, padding: "8px 10px",
+            border: "1px solid #D8D2C6", borderRadius: 6,
+            fontFamily: "Georgia, serif", fontSize: 12, color: "#1A1A1A",
+            background: "#F9F7F3", resize: "vertical", outline: "none", lineHeight: 1.6,
+          }
+        }),
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 } },
+          React.createElement("span", { style: { color: "#BBB", fontSize: 11 } }, day.label + " · " + today),
+          React.createElement("button", {
+            onClick: saveSessionComment, disabled: !currentComment.trim(),
+            style: {
+              padding: "7px 16px", border: "none",
+              background: currentComment.trim() ? day.color : "#D8D2C6",
+              color: "#FFF", borderRadius: 5, cursor: currentComment.trim() ? "pointer" : "default",
+              fontSize: 10, letterSpacing: 1, textTransform: "uppercase",
+            }
+          }, "Sauvegarder")
+        )
+      )
+    );
+
+  // ── VUE JOURNAL ────────────────────────────────────────────────────────────
+  const renderJournal = () => {
+    const ratingCounts = {};
+    RATINGS.forEach(r => { ratingCounts[r.id] = 0; });
+    Object.values(exRatings).forEach(r => { if (r) ratingCounts[r] = (ratingCounts[r] || 0) + 1; });
+    const totalRated = Object.values(ratingCounts).reduce((a, b) => a + b, 0);
+    const summary = buildRatingsSummary();
+    const hasData = summary || allComments.length > 0;
+
+    return React.createElement("div", { style: { padding: "18px 16px 80px" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 } },
+        React.createElement("div", null,
+          React.createElement("p", { style: label }, "Journal de bord"),
+          React.createElement("p", { style: { margin: 0, color: "#777", fontSize: 13 } }, totalRated + " exercices évalués · " + allComments.length + " note" + (allComments.length > 1 ? "s" : ""))
+        ),
+        hasData && React.createElement("button", {
+          onClick: adaptProgram, disabled: isAdapting,
+          style: {
+            padding: "9px 14px", border: "none",
+            background: isAdapting ? "#D8D2C6" : "#1A1A1A",
+            color: "#FFF", borderRadius: 6, cursor: isAdapting ? "default" : "pointer",
+            fontSize: 10, letterSpacing: 2, textTransform: "uppercase",
+          }
+        }, isAdapting ? "Analyse..." : "Adapter le programme")
+      ),
+      // Stats
+      totalRated > 0 && React.createElement("div", { style: { marginBottom: 20, ...card } },
+        React.createElement("p", { style: { ...label, margin: "0 0 10px" } }, "Bilan des évaluations"),
+        React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+          RATINGS.map(r => ratingCounts[r.id] > 0 && React.createElement("div", {
+            key: r.id,
+            style: { padding: "7px 12px", background: r.bg, border: "1px solid " + r.color + "33", borderRadius: 6, display: "flex", alignItems: "center", gap: 7 }
+          },
+            React.createElement("span", { style: { fontSize: 14 } }, r.emoji),
+            React.createElement("div", null,
+              React.createElement("div", { style: { fontSize: 13, color: r.color, fontWeight: 600 } }, ratingCounts[r.id]),
+              React.createElement("div", { style: { fontSize: 10, color: "#AAA" } }, r.label)
+            )
+          ))
+        ),
+        React.createElement("div", { style: { marginTop: 10, height: 5, borderRadius: 3, overflow: "hidden", display: "flex" } },
+          RATINGS.map(r => ratingCounts[r.id] > 0 && React.createElement("div", {
+            key: r.id, style: { flex: ratingCounts[r.id], background: r.color, transition: "flex 0.4s" }
+          }))
+        )
+      ),
+      // IA
+      isAdapting && React.createElement("div", { style: { padding: "18px", ...card, marginBottom: 14, textAlign: "center" } },
+        React.createElement("p", { style: { color: "#999", fontSize: 13, fontStyle: "italic" } }, "Analyse de tes retours en cours...")
+      ),
+      adaptError && React.createElement("div", { style: { padding: "12px 14px", background: "#FFF0F0", border: "1px solid #E8A0A0", borderRadius: 8, marginBottom: 14 } },
+        React.createElement("p", { style: { margin: 0, color: "#C44", fontSize: 13 } }, adaptError)
+      ),
+      adaptResult && React.createElement("div", { style: { marginBottom: 20, ...card } },
+        React.createElement("p", { style: { ...label, color: "#2A7BE8" } }, "Analyse du coach IA"),
+        React.createElement("p", { style: { margin: "0 0 14px", color: "#333", fontSize: 13, lineHeight: 1.7, fontStyle: "italic" } }, adaptResult.analyse),
+        React.createElement("p", { style: { ...label, marginTop: 14 } }, "Ajustements proposés"),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+          (adaptResult.ajustements || []).map((a, i) => React.createElement("div", {
+            key: i, style: { padding: "10px 12px", background: "#F5F2EC", borderRadius: 7, borderLeft: "3px solid #2A7BE8" }
+          },
+            React.createElement("p", { style: { margin: "0 0 3px", fontSize: 10, color: "#2A7BE8", letterSpacing: 1, textTransform: "uppercase" } }, a.jour + " · " + a.exercice),
+            React.createElement("p", { style: { margin: "0 0 3px", fontSize: 13, color: "#1A1A1A" } }, a.modification),
+            React.createElement("p", { style: { margin: 0, fontSize: 12, color: "#777", fontStyle: "italic" } }, a.raison)
+          ))
+        ),
+        adaptResult.conseil_global && React.createElement("div", { style: { marginTop: 12, padding: "10px 12px", background: "#FDF8E8", border: "1px solid #C8B87A", borderRadius: 7 } },
+          React.createElement("p", { style: { margin: 0, color: "#B8860B", fontSize: 13, lineHeight: 1.6 } }, adaptResult.conseil_global)
+        )
+      ),
+      // Détail exercices
+      totalRated > 0 && React.createElement("div", { style: { marginBottom: 20 } },
+        React.createElement("p", { style: label }, "Détail par exercice"),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
+          DAYS.flatMap(d => d.exercises.map((ex, i) => {
+            const rId = exRatings[d.id + "-" + i];
+            const note = exNotes[d.id + "-" + i];
+            if (!rId && !note) return null;
+            const rating = RATINGS.find(r => r.id === rId);
+            return React.createElement("div", {
+              key: d.id + "-" + i,
+              style: { padding: "10px 13px", background: rating ? rating.bg : "#FFF", border: "1px solid " + (rating ? rating.color + "44" : "#E0DBCF"), borderRadius: 8 }
+            },
+              React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: note ? 5 : 0 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7 } },
+                  React.createElement("span", { style: { fontSize: 10, color: d.color, padding: "1px 7px", background: d.color + "15", borderRadius: 3 } }, d.label),
+                  React.createElement("span", { style: { fontSize: 13, color: "#333" } }, ex.name)
+                ),
+                rating && React.createElement("span", { style: { fontSize: 12, color: rating.color } }, rating.emoji + " " + rating.label)
+              ),
+              note && React.createElement("p", { style: { margin: 0, fontSize: 12, color: "#666", fontStyle: "italic" } }, note)
+            );
+          }))
+        )
+      ),
+      // Commentaires séance
+      allComments.length > 0 && React.createElement("div", null,
+        React.createElement("p", { style: label }, "Notes globales de séance"),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
+          allComments.map((c, i) => {
+            const d = DAYS.find(d => d.id === c.dayId);
+            return React.createElement("div", { key: i, style: { padding: "12px 13px", ...card } },
+              React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 5 } },
+                React.createElement("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
+                  React.createElement("span", { style: { fontSize: 9, color: d?.color || "#999", padding: "1px 7px", background: (d?.color || "#999") + "15", borderRadius: 3, textTransform: "uppercase", letterSpacing: 1 } }, c.dayLabel),
+                  React.createElement("span", { style: { color: "#AAA", fontSize: 12 } }, c.dayFocus)
+                ),
+                React.createElement("span", { style: { color: "#CCC", fontSize: 11 } }, c.date)
+              ),
+              React.createElement("p", { style: { margin: 0, color: "#444", fontSize: 13, lineHeight: 1.7 } }, c.text)
+            );
+          })
+        )
+      ),
+      !hasData && React.createElement("div", { style: { padding: "40px 20px", textAlign: "center", color: "#CCC", fontSize: 13, fontStyle: "italic" } },
+        "Évalue tes exercices depuis l'onglet Programme pour alimenter le journal."
+      )
+    );
+  };
+
+  // ── VUE PROGRESSION ────────────────────────────────────────────────────────
+  const renderProgression = () =>
+    React.createElement("div", { style: { padding: "18px 16px 80px" } },
+      React.createElement("p", { style: label }, "Planning semaine type"),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 26 } },
+        WEEK_PLAN.map((w, i) => {
+          const d = w.dayIdx !== null ? DAYS[w.dayIdx] : null;
+          return React.createElement("div", {
+            key: i,
+            style: { padding: "9px 4px", borderRadius: 6, textAlign: "center", background: d ? d.color + "12" : "#EDE9E0", border: "1px solid " + (d ? d.color + "30" : "#D8D2C6") }
+          },
+            React.createElement("p", { style: { margin: "0 0 3px", fontSize: 10, color: d ? "#777" : "#CCC", letterSpacing: 1 } }, w.jour),
+            d ? [
+              React.createElement("p", { key: "t", style: { margin: 0, fontSize: 9, color: d.color, fontWeight: 600 } }, d.tag),
+              React.createElement("p", { key: "l", style: { margin: "2px 0 0", fontSize: 8, color: "#AAA" } }, d.label)
+            ] : React.createElement("p", { style: { margin: 0, fontSize: 9, color: "#CCC", letterSpacing: 1 } }, "REPOS")
+          );
+        })
+      ),
+      React.createElement("p", { style: label }, "Progression sur 8 semaines"),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7, marginBottom: 26 } },
+        PROGRESSIONS.map((p, i) => React.createElement("div", {
+          key: i, style: { display: "flex", gap: 12, padding: "10px 13px", background: "#FFFFFF", borderRadius: 6, border: "1px solid #E0DBCF" }
+        },
+          React.createElement("span", { style: { color: "#B8860B", fontSize: 11, letterSpacing: 1, whiteSpace: "nowrap", minWidth: 86, paddingTop: 1 } }, p.week),
+          React.createElement("span", { style: { color: "#555", fontSize: 13, lineHeight: 1.5 } }, p.rule)
+        ))
+      ),
+      React.createElement("p", { style: label }, "Objectifs de progression"),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
+        [
+          { label: "Dips lestés", current: "6 reps x KB 6kg", target: "8 reps, puis KB 10kg", color: "#E84B2A" },
+          { label: "Tractions lestées", current: "6 reps x KB 6kg", target: "8 reps, puis KB 10kg", color: "#2A7BE8" },
+          { label: "Bulgarian Split Squat", current: "8 reps x KB 20kg", target: "12 reps x KB 20kg", color: "#2AAE5E" },
+          { label: "Pompes Archer", current: "6 à 8 reps", target: "Pompe à 1 bras assistée", color: "#E84B2A" },
+        ].map((obj, i) => React.createElement("div", { key: i, style: { padding: "12px 13px", background: "#FFFFFF", border: "1px solid #E0DBCF", borderRadius: 8 } },
+          React.createElement("p", { style: { margin: "0 0 7px", color: obj.color, fontSize: 11, letterSpacing: 1, textTransform: "uppercase" } }, obj.label),
+          React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
+            React.createElement("span", { style: { fontSize: 12, color: "#AAA", padding: "2px 8px", background: "#F0EDE6", borderRadius: 4 } }, "Maintenant : " + obj.current),
+            React.createElement("span", { style: { color: "#CCC" } }, "→"),
+            React.createElement("span", { style: { fontSize: 12, color: obj.color, padding: "2px 8px", background: obj.color + "15", borderRadius: 4 } }, "Cible : " + obj.target)
+          )
+        ))
+      )
+    );
+
+  // ── RENDU ──────────────────────────────────────────────────────────────────
+  return React.createElement("div", { style: { fontFamily: "Georgia, 'Times New Roman', serif", background: "#F5F2EC", minHeight: "100vh", color: "#1A1A1A" } },
+    // Toast
+    toast && React.createElement("div", {
+      style: {
+        position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)",
+        background: "#1A1A1A", color: "#FFF", padding: "9px 18px", borderRadius: 20,
+        fontSize: 12, zIndex: 999, letterSpacing: 0.5, opacity: 1, transition: "opacity 0.3s",
+      }
+    }, toast),
+    // Header
+    React.createElement("div", { style: { background: "#EDE9E0", borderBottom: "1px solid #D8D2C6", padding: "20px 20px 14px", paddingTop: "max(20px, env(safe-area-inset-top))" } },
+      React.createElement("div", { style: { maxWidth: 720, margin: "0 auto" } },
+        React.createElement("p", { style: { color: "#AAA", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", margin: "0 0 4px" } }, "Programme personnel"),
+        React.createElement("h1", { style: { fontSize: "clamp(19px, 5vw, 28px)", fontWeight: 400, margin: "0 0 3px", letterSpacing: -0.5 } }, "Force & Volume — Maison"),
+        React.createElement("p", { style: { color: "#AAA", fontSize: 12, margin: 0, fontStyle: "italic" } }, "4 jours / semaine · 30 à 45 min · KB 20kg + 6kg")
+      )
+    ),
+    // Nav
+    React.createElement("div", { style: { display: "flex", borderBottom: "1px solid #D8D2C6", background: "#EDE9E0", position: "sticky", top: 0, zIndex: 10 } },
+      React.createElement("div", { style: { maxWidth: 720, margin: "0 auto", display: "flex", width: "100%" } },
+        [
+          { key: "program", label: "Programme" },
+          { key: "journal", label: "Journal" },
+          { key: "progression", label: "Progression" },
+        ].map(tab => React.createElement("button", {
+          key: tab.key, onClick: () => setView(tab.key),
+          style: {
+            flex: 1, padding: "11px 6px", border: "none",
+            borderBottom: view === tab.key ? "2px solid #1A1A1A" : "2px solid transparent",
+            background: "transparent", color: view === tab.key ? "#1A1A1A" : "#999",
+            cursor: "pointer", fontSize: 10, letterSpacing: 2, textTransform: "uppercase",
+            transition: "all 0.2s",
+          }
+        }, tab.label))
+      )
+    ),
+    // Content
+    React.createElement("div", { style: { maxWidth: 720, margin: "0 auto" } },
+      view === "program" && renderProgram(),
+      view === "journal" && renderJournal(),
+      view === "progression" && renderProgression()
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
